@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, CheckCircle, Play, Search, Brain, Target } from "lucide-react";
+import { AlertTriangle, CheckCircle, Play, Search, Brain, Target, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface AnalysisResult {
@@ -25,10 +25,57 @@ export default function FakeNewsDetector() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [urlError, setUrlError] = useState("");
+
+  // URL validation patterns
+  const validUrlPatterns = [
+    // YouTube Shorts
+    /^https?:\/\/(www\.)?(youtube\.com\/shorts\/|youtu\.be\/)/i,
+    // Instagram Reels
+    /^https?:\/\/(www\.)?instagram\.com\/reel\//i,
+    // Instagram Posts (for short videos)
+    /^https?:\/\/(www\.)?instagram\.com\/p\//i,
+    // Instagram Stories (temporary content)
+    /^https?:\/\/(www\.)?instagram\.com\/stories\//i
+  ];
+
+  const validateUrl = (inputUrl: string): boolean => {
+    if (!inputUrl.trim()) {
+      setUrlError("Please enter a URL");
+      return false;
+    }
+
+    // Check if it's a valid URL format
+    try {
+      new URL(inputUrl);
+    } catch {
+      setUrlError("Please enter a valid URL");
+      return false;
+    }
+
+    // Check if it matches our supported platforms
+    const isValid = validUrlPatterns.some(pattern => pattern.test(inputUrl));
+    
+    if (!isValid) {
+      setUrlError("Only YouTube Shorts and Instagram Reels/Posts are supported");
+      return false;
+    }
+
+    setUrlError("");
+    return true;
+  };
+
+  const handleUrlChange = (value: string) => {
+    setUrl(value);
+    if (value.trim()) {
+      validateUrl(value);
+    } else {
+      setUrlError("");
+    }
+  };
 
   const analyzeVideo = async () => {
-    if (!url) {
-      toast.error("Please enter a YouTube Shorts URL");
+    if (!validateUrl(url)) {
       return;
     }
 
@@ -89,32 +136,63 @@ export default function FakeNewsDetector() {
             </h1>
           </div>
           <p className="text-muted-foreground text-lg">
-            AI-powered fake news detection for YouTube Shorts
+            AI-powered fake news detection for YouTube Shorts & Instagram Reels
           </p>
         </div>
 
         {/* Input Section */}
         <Card className="p-6 border-border/50 bg-card/50 backdrop-blur-sm">
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Paste YouTube Shorts URL here..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="flex-1 bg-background/50 border-border"
-              />
-              <Button 
-                onClick={analyzeVideo} 
-                disabled={isAnalyzing}
-                className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-300 shadow-lg"
-              >
-                {isAnalyzing ? (
-                  <Brain className="h-4 w-4 mr-2 animate-pulse" />
-                ) : (
-                  <Search className="h-4 w-4 mr-2" />
-                )}
-                {isAnalyzing ? "Analyzing..." : "Analyze"}
-              </Button>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Input
+                    placeholder="Paste YouTube Shorts or Instagram Reel URL here..."
+                    value={url}
+                    onChange={(e) => handleUrlChange(e.target.value)}
+                    className={`bg-background/50 border-border pr-10 ${urlError ? 'border-destructive focus:border-destructive' : ''}`}
+                  />
+                  {url && (
+                    <button
+                      onClick={() => {
+                        setUrl("");
+                        setUrlError("");
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <Button 
+                  onClick={analyzeVideo} 
+                  disabled={isAnalyzing || !!urlError || !url.trim()}
+                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-300 shadow-lg disabled:opacity-50"
+                >
+                  {isAnalyzing ? (
+                    <Brain className="h-4 w-4 mr-2 animate-pulse" />
+                  ) : (
+                    <Search className="h-4 w-4 mr-2" />
+                  )}
+                  {isAnalyzing ? "Analyzing..." : "Analyze"}
+                </Button>
+              </div>
+              
+              {urlError && (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  {urlError}
+                </div>
+              )}
+              
+              <div className="text-xs text-muted-foreground">
+                <p className="mb-1">Supported platforms:</p>
+                <ul className="space-y-1">
+                  <li>• YouTube Shorts (youtube.com/shorts/* or youtu.be/*)</li>
+                  <li>• Instagram Reels (instagram.com/reel/*)</li>
+                  <li>• Instagram Posts (instagram.com/p/*)</li>
+                </ul>
+              </div>
             </div>
             
             {isAnalyzing && (
